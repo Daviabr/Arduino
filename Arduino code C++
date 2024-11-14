@@ -1,45 +1,44 @@
 #include <Servo.h>
 #include <Keypad.h>
 
-String codigo = "0000";   // Senha atual
-String acesso = "";   // Senha temporária para tentativa
-int tentativas = 0;   // Contador de caracteres
+String codigo = "0000"; // Senha atual
+String acesso = ""; // Senha temporária para tentativa
+int tentativas = 0; // Contador de caracteres
 int erros = 0;        // Contador de erros de senha
 int ledVermelho = 11;
 int ledVerde = 10;
 int ledAzul = 13;
 Servo fechadura;
 
-const byte numRows= 4; 
-const byte numCols= 4; 
-char keymap[numRows][numCols]= {
-  {'1', '2', '3', 'A'}, 
-  {'4', '5', '6', 'B'}, 
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
+const byte numRows = 4;
+const byte numCols = 4;
+char keymap[numRows][numCols] = {
+{'1', '2', '3', 'A'},
+{'4', '5', '6', 'B'},
+{'7', '8', '9', 'C'},
+{'*', '0', '#', 'D'}
 };
 
-byte rowPins[numRows] = {9,8,7,6};
-byte colPins[numCols]= {5,4,3,2}; 
+byte rowPins[numRows] = {9, 8, 7, 6};
+byte colPins[numCols] = {5, 4, 3, 2};
 
-Keypad myKeypad= Keypad(makeKeymap(keymap), rowPins, colPins, numRows, numCols);
+Keypad myKeypad = Keypad(makeKeymap(keymap), rowPins, colPins, numRows, numCols);
 
-void setup(){
-    pinMode(ledVermelho, OUTPUT); 
+void setup() {
+    pinMode(ledVermelho, OUTPUT);
     pinMode(ledVerde, OUTPUT);
     pinMode(ledAzul, OUTPUT);
     fechadura.attach(12);
     fechadura.write(0);
     Serial.begin(9600);
     digitalWrite(ledAzul, HIGH);
-    Serial.print("APERTE 'A' PARA INICIAR O PROCESSO\n");  
+    Serial.print("APERTE 'A' PARA INICIAR O PROCESSO\n");
 }
 
-void loop()
-{
+void loop() {
     char keypressed = myKeypad.getKey();
-    if (keypressed != NO_KEY){
-        if (keypressed == 'A'){
+    if (keypressed != NO_KEY) {
+        if (keypressed == 'A') {
             tentativas = 0;
             erros = 0;
             acesso = "";
@@ -48,15 +47,15 @@ void loop()
     }
 }
 
-void verificarSenha(){
-    while (erros < 3) {  // Permite até 3 tentativas
+void verificarSenha() {
+    while (erros < 4) { // Permite tentativas
         Serial.print("\nINSIRA A SENHA (MAX. 4)\n");
         acesso = "";
         tentativas = 0;
-        
-        while (tentativas < 4){
+
+        while (tentativas < 4) {
             char keypressed = myKeypad.getKey();
-            if (keypressed != NO_KEY){
+            if (keypressed != NO_KEY) {
                 acesso += keypressed;
                 Serial.print('*');
                 tentativas++;
@@ -64,21 +63,18 @@ void verificarSenha(){
         }
         
         Serial.print("\n\nPROCESSANDO...");
-        delay(1000);
+        delay(100);
 
         if (acesso == codigo) {
             // Senha correta
             digitalWrite(ledAzul, LOW);
             digitalWrite(ledVerde, HIGH);
             Serial.print("\n\nSENHA CORRETA\n");
-            delay(2500);
-            Serial.print("\nACESSANDO...\n");
-            delay(1000);
-            Serial.print("\nACESSO LIBERADO!\n");
+            logAcesso("Acesso liberado"); // Log de acesso
+            delay(250);
             fechadura.write(90);
-            delay(9000);
+            delay(5000);
             fechadura.write(0);
-            Serial.print("\nCOFRE FECHANDO...\n");
             digitalWrite(ledVerde, LOW);
             return;
         } else {
@@ -86,41 +82,46 @@ void verificarSenha(){
             digitalWrite(ledAzul, LOW);
             digitalWrite(ledVermelho, HIGH);
             Serial.print("\n\nERRO! SENHA INCORRETA\n");
-            delay(2000);
+            logAcesso("Erro na senha"); // Log de erro
+            delay(200);
             digitalWrite(ledVermelho, LOW);
             erros++;
         }
     }
-
-    // Se atingir o limite de tentativas, solicitar código de redefinição
     solicitarCodigoRedefinicao();
 }
 
-void solicitarCodigoRedefinicao() {
-    Serial.print("\nTENTATIVAS EXCEDIDAS! INSIRA O CÓDIGO DE REDEFINIÇÃO\n");
+void logAcesso(String mensagem) {
+    Serial.print("LOG: ");
+    Serial.print(mensagem);
+    Serial.print(" - ");
+    Serial.print(millis() / 1000); // Exibir tempo em segundos
+}
 
+void solicitarCodigoRedefinicao() {
+    Serial.print("\nTENTATIVAS EXCEDIDAS!\n");
     String redefinicao = "";
-    while (redefinicao != "0000") {  // Código de redefinição "0000"
+
+    while (redefinicao != "D") {
         redefinicao = "";
-        Serial.print("\nINSIRA O CÓDIGO DE REDEFINIÇÃO (MAX. 4)\n");
-        
-        int contador = 0;
-        while (contador < 4) {
+        Serial.print("\nINSIRA O CÓDIGO DE REDEFINIÇÃO ('D' PARA PROSSEGUIR)\n");
+
+        while (redefinicao.length() < 1) {
             char keypressed = myKeypad.getKey();
             if (keypressed != NO_KEY) {
                 redefinicao += keypressed;
                 Serial.print('*');
-                contador++;
             }
         }
 
-        if (redefinicao != "0000") {
+        if (redefinicao != "D") {
             Serial.print("\nCÓDIGO DE REDEFINIÇÃO INCORRETO\n");
-            delay(2000);
+            logAcesso("Código de redefinição incorreto"); // Log de erro
+            delay(200);
         }
     }
 
-    // Redefinir senha após código de redefinição correto
+    // Se chegou aqui, redefinição foi bem-sucedida com 'D'
     Serial.print("\nCÓDIGO DE REDEFINIÇÃO CORRETO. INSIRA UMA NOVA SENHA\n");
     codigo = "";
     tentativas = 0;
@@ -133,5 +134,5 @@ void solicitarCodigoRedefinicao() {
         }
     }
     Serial.print("\nNOVA SENHA ARMAZENADA\n");
-    erros = 0;  // Resetar contagem de erros
+    erros = 0; // Resetar contagem de erros
 }
