@@ -1,7 +1,7 @@
 #include <Servo.h>
 #include <Keypad.h>
 
-String codigo = "";   // Senha atual
+String codigo = "0000";   // Senha atual
 String acesso = "";   // Senha temporária para tentativa
 int tentativas = 0;   // Contador de caracteres
 int erros = 0;        // Contador de erros de senha
